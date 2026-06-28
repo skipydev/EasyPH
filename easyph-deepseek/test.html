@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="ru">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>EasyPh DeepSeek API Test</title>
+		<style>
+			body {
+				font-family: Arial, sans-serif;
+				max-width: 800px;
+				margin: 50px auto;
+				padding: 20px;
+				background-color: #f5f5f5;
+			}
+			.container {
+				background: white;
+				padding: 30px;
+				border-radius: 10px;
+				box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+			}
+			h1 {
+				color: #333;
+				text-align: center;
+				margin-bottom: 30px;
+			}
+			.test-section {
+				margin: 20px 0;
+				padding: 15px;
+				border: 1px solid #ddd;
+				border-radius: 5px;
+				background-color: #fafafa;
+			}
+			button {
+				background-color: #007bff;
+				color: white;
+				padding: 10px 20px;
+				border: none;
+				border-radius: 5px;
+				cursor: pointer;
+				margin: 5px;
+			}
+			button:hover {
+				background-color: #0056b3;
+			}
+			button:disabled {
+				background-color: #ccc;
+				cursor: not-allowed;
+			}
+			.result {
+				margin-top: 15px;
+				padding: 10px;
+				border-radius: 5px;
+				white-space: pre-wrap;
+				font-family: monospace;
+				font-size: 12px;
+				max-height: 300px;
+				overflow-y: auto;
+			}
+			.success {
+				background-color: #d4edda;
+				border: 1px solid #c3e6cb;
+				color: #155724;
+			}
+			.error {
+				background-color: #f8d7da;
+				border: 1px solid #f5c6cb;
+				color: #721c24;
+			}
+			.info {
+				background-color: #d1ecf1;
+				border: 1px solid #bee5eb;
+				color: #0c5460;
+			}
+			input,
+			textarea {
+				width: 100%;
+				padding: 8px;
+				margin: 5px 0;
+				border: 1px solid #ddd;
+				border-radius: 3px;
+				box-sizing: border-box;
+			}
+			.status {
+				padding: 10px;
+				margin: 10px 0;
+				border-radius: 5px;
+				text-align: center;
+				font-weight: bold;
+			}
+			.online {
+				background-color: #d4edda;
+				color: #155724;
+			}
+			.offline {
+				background-color: #f8d7da;
+				color: #721c24;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<h1>API TEST</h1>
+
+			<div id="connectionStatus" class="status offline">
+				Проверка соединения...
+			</div>
+
+			<div class="test-section">
+				<h3>📋 Health Check</h3>
+				<button onclick="testHealthCheck()">Проверить состояние сервера</button>
+				<div id="healthResult" class="result"></div>
+			</div>
+
+			<div class="test-section">
+				<h3>🎯 Генерация задачи</h3>
+				<input
+					type="text"
+					id="taskNum"
+					placeholder="Номер задачи (например, 21)"
+					value="21"
+				/>
+				<input
+					type="text"
+					id="taskTopic"
+					placeholder="Тема (например, механика)"
+					value="механика"
+				/>
+				<button onclick="testGenerateTask()">Сгенерировать задачу</button>
+				<div id="generateResult" class="result"></div>
+			</div>
+
+			<div class="test-section">
+				<h3>🔍 Проверка ответа</h3>
+				<input
+					type="text"
+					id="correctAnswer"
+					placeholder="Правильный ответ"
+					value="25"
+				/>
+				<input
+					type="text"
+					id="userAnswer"
+					placeholder="Ответ пользователя"
+					value="25"
+				/>
+				<button onclick="testCheckAnswer()">Проверить ответ</button>
+				<div id="checkResult" class="result"></div>
+			</div>
+
+			<div class="test-section">
+				<h3>🔄 Legacy API Test</h3>
+				<button onclick="testLegacyGenerate()">Тест /api/tasks/generate</button>
+				<button onclick="testLegacyValidate()">
+					Тест /api/tasks/validate-answer
+				</button>
+				<div id="legacyResult" class="result"></div>
+			</div>
+
+			<div class="test-section">
+				<h3>📊 Console Logs</h3>
+				<div
+					id="consoleLogs"
+					class="result"
+					style="background-color: #f8f9fa; color: #495057"
+				>
+					Логи будут отображаться здесь...
+				</div>
+				<button onclick="clearConsole()">Очистить логи</button>
+			</div>
+		</div>
+
+		<script>
+			const API_BASE = 'http://localhost:5000'
+
+			function log(message, type = 'info') {
+				const timestamp = new Date().toLocaleTimeString()
+				const logEntry = `[${timestamp}] ${message}`
+
+				console.log(logEntry)
+
+				const consoleDiv = document.getElementById('consoleLogs')
+				const logClass =
+					type === 'error' ? 'error' : type === 'success' ? 'success' : 'info'
+				consoleDiv.innerHTML += `<div class="${logClass}" style="margin: 5px 0; padding: 5px;">${logEntry}</div>`
+				consoleDiv.scrollTop = consoleDiv.scrollHeight
+			}
+
+			function clearConsole() {
+				document.getElementById('consoleLogs').innerHTML = 'Логи очищены...'
+			}
+
+			async function checkConnection() {
+				try {
+					const response = await fetch(`${API_BASE}/health`)
+					const data = await response.json()
+
+					const statusDiv = document.getElementById('connectionStatus')
+					if (response.ok) {
+						statusDiv.className = 'status online'
+						statusDiv.innerHTML = `✅ Сервер онлайн: ${data.service} v${data.version}`
+						log(`Сервер подключен успешно`, 'success')
+					} else {
+						throw new Error('Server returned error')
+					}
+				} catch (error) {
+					const statusDiv = document.getElementById('connectionStatus')
+					statusDiv.className = 'status offline'
+					statusDiv.innerHTML = '❌ Сервер недоступен'
+					log(`Ошибка подключения: ${error.message}`, 'error')
+				}
+			}
+
+			async function testHealthCheck() {
+				log('Начинаем тест health check...')
+				const resultDiv = document.getElementById('healthResult')
+
+				try {
+					const response = await fetch(`${API_BASE}/health`)
+					const data = await response.json()
+
+					if (response.ok) {
+						resultDiv.className = 'result success'
+						resultDiv.textContent = JSON.stringify(data, null, 2)
+						log('Health check успешен', 'success')
+					} else {
+						throw new Error(`HTTP ${response.status}`)
+					}
+				} catch (error) {
+					resultDiv.className = 'result error'
+					resultDiv.textContent = `Ошибка: ${error.message}`
+					log(`Health check ошибка: ${error.message}`, 'error')
+				}
+			}
+
+			async function testGenerateTask() {
+				log('Начинаем генерацию задачи...')
+				const resultDiv = document.getElementById('generateResult')
+				const num = document.getElementById('taskNum').value
+				const topic = document.getElementById('taskTopic').value
+
+				try {
+					const response = await fetch(`${API_BASE}/generate`, {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+						},
+						body: JSON.stringify({
+							num: num,
+							topic: topic,
+						}),
+					})
+
+					const data = await response.json()
+
+					if (response.ok) {
+						resultDiv.className = 'result success'
+						resultDiv.textContent = JSON.stringify(data, null, 2)
+						log(`Задача сгенерирована успешно`, 'success')
+					} else {
+						throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`)
+					}
+				} catch (error) {
+					resultDiv.className = 'result error'
+					resultDiv.textContent = `Ошибка: ${error.message}`
+					log(`Ошибка генерации: ${error.message}`, 'error')
+				}
+			}
+
+			async function testCheckAnswer() {
+				log('Начинаем проверку ответа...')
+				const resultDiv = document.getElementById('checkResult')
+				const correct = document.getElementById('correctAnswer').value
+				const user = document.getElementById('userAnswer').value
+
+				try {
+					const response = await fetch(`${API_BASE}/check`, {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+						},
+						body: JSON.stringify({
+							correct: correct,
+							user: user,
+						}),
+					})
+
+					const data = await response.json()
+
+					if (response.ok) {
+						resultDiv.className = 'result success'
+						resultDiv.textContent = JSON.stringify(data, null, 2)
+						log(`Ответ проверен: ${data.status}`, 'success')
+					} else {
+						throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`)
+					}
+				} catch (error) {
+					resultDiv.className = 'result error'
+					resultDiv.textContent = `Ошибка: ${error.message}`
+					log(`Ошибка проверки: ${error.message}`, 'error')
+				}
+			}
+
+			async function testLegacyGenerate() {
+				log('Тестируем legacy API /api/tasks/generate...')
+				const resultDiv = document.getElementById('legacyResult')
+
+				try {
+					const response = await fetch(`${API_BASE}/api/tasks/generate`, {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+						},
+						body: JSON.stringify({
+							number: '21',
+							topic: 'механика',
+						}),
+					})
+
+					const data = await response.json()
+
+					if (response.ok) {
+						resultDiv.className = 'result success'
+						resultDiv.textContent = `Legacy generate: ${JSON.stringify(
+							data,
+							null,
+							2
+						)}`
+						log('Legacy API работает', 'success')
+					} else {
+						throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`)
+					}
+				} catch (error) {
+					resultDiv.className = 'result error'
+					resultDiv.textContent = `Ошибка: ${error.message}`
+					log(`Legacy API ошибка: ${error.message}`, 'error')
+				}
+			}
+
+			async function testLegacyValidate() {
+				log('Тестируем legacy API /api/tasks/validate-answer...')
+				const resultDiv = document.getElementById('legacyResult')
+
+				try {
+					const response = await fetch(
+						`${API_BASE}/api/tasks/validate-answer`,
+						{
+							method: 'POST',
+							headers: {
+								'Content-Type': 'application/json',
+							},
+							body: JSON.stringify({
+								taskId: 'test_task',
+								userAnswer: '42',
+							}),
+						}
+					)
+
+					const data = await response.json()
+
+					if (response.ok) {
+						resultDiv.className = 'result success'
+						resultDiv.textContent = `Legacy validate: ${JSON.stringify(
+							data,
+							null,
+							2
+						)}`
+						log('Legacy validate API работает', 'success')
+					} else {
+						throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`)
+					}
+				} catch (error) {
+					resultDiv.className = 'result error'
+					resultDiv.textContent = `Ошибка: ${error.message}`
+					log(`Legacy validate ошибка: ${error.message}`, 'error')
+				}
+			}
+
+			// Проверяем соединение при загрузке страницы
+			window.addEventListener('load', () => {
+				log('Страница загружена, проверяем соединение...')
+				checkConnection()
+			})
+
+			// Проверяем соединение каждые 30 секунд
+			setInterval(checkConnection, 30000)
+		</script>
+	</body>
+</html>
