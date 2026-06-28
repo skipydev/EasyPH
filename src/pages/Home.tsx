@@ -55,7 +55,7 @@ export function Home() {
 
 	const [daysLeft, setDaysLeft] = useState(0)
 	useEffect(() => {
-		const targetDate = new Date('2026-06-11T00:00:00')
+		const targetDate = new Date('2027-06-11T00:00:00')
 		const now = new Date()
 		const difference = targetDate.getTime() - now.getTime()
 		const days = Math.ceil(difference / (1000 * 3600 * 24))
